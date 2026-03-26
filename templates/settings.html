@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Settings — FaceAttend</title>
+  <meta name="description" content="FaceAttend system settings">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div><div class="aurora-layer aurora-4"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">◈</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Staff Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <a href="/staff/dashboard" class="sidebar-link"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/staff/take-attendance" class="sidebar-link"><div class="nav-icon">◉</div> Take Attendance</a>
+      <span class="nav-label">Reports</span>
+      <a href="/staff/reports" class="sidebar-link"><div class="nav-icon">◑</div> Monthly Reports</a>
+      <span class="nav-label">Manage</span>
+      <a href="/staff/users" class="sidebar-link"><div class="nav-icon">◎</div> Students</a>
+      <a href="/staff/settings" class="sidebar-link active"><div class="nav-icon">⚙</div> Settings</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">Staff · {{ session.department }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Settings</div>
+          <div class="topbar-sub">System preferences &amp; configuration</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="settings-grid">
+        <!-- Appearance -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">🎨 Appearance</span></div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Dark Mode</h4>
+              <p>Use dark theme across the application</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Particle Effects</h4>
+              <p>Show floating particles in background</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleParticles" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Aurora Background</h4>
+              <p>Animated aurora gradient effect</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleAurora" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Attendance -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">📸 Attendance</span></div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Auto-Scan Interval</h4>
+              <p>Face recognition scan rate</p>
+            </div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--teal-light)">3 seconds</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Confidence Threshold</h4>
+              <p>Minimum match score for recognition</p>
+            </div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--teal-light)">80%</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Auto-refresh Dashboard</h4>
+              <p>Refresh stats every 60 seconds</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Export -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">📄 Export Settings</span></div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Default Export Format</h4>
+              <p>Format used for quick downloads</p>
+            </div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--teal-light)">CSV</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label">
+              <h4>Include Department Filter</h4>
+              <p>Apply department filter to exports</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">ℹ️ System Info</span></div>
+          <div class="setting-item">
+            <div class="setting-label"><h4>Version</h4><p>FaceAttend Premium</p></div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--mint)">v2.0.0</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label"><h4>Backend</h4><p>Python Flask + SQLite</p></div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--teal-light)">Flask 3.0</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label"><h4>Face Engine</h4><p>OpenCV LBPH Recognizer</p></div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--teal-light)">OpenCV 4.9</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-label"><h4>Staff</h4><p>Currently logged in as</p></div>
+            <span style="font-size:0.85rem;font-weight:600;color:var(--mint)">{{ session.user_name }}</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  // Particle toggle
+  const toggleParticles = document.getElementById('toggleParticles');
+  if (toggleParticles) {
+    toggleParticles.addEventListener('change', () => {
+      const canvas = document.getElementById('particlesCanvas');
+      if (canvas) canvas.style.display = toggleParticles.checked ? '' : 'none';
+    });
+  }
+
+  // Aurora toggle
+  const toggleAurora = document.getElementById('toggleAurora');
+  if (toggleAurora) {
+    toggleAurora.addEventListener('change', () => {
+      const aurora = document.querySelector('.aurora-bg');
+      if (aurora) aurora.style.display = toggleAurora.checked ? '' : 'none';
+    });
+  }
+</script>
+</body>
+</html>

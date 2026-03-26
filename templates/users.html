@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Student Management — FaceAttend</title>
+  <meta name="description" content="Manage students in FaceAttend system">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div><div class="aurora-layer aurora-4"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">◈</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Staff Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <a href="/staff/dashboard" class="sidebar-link"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/staff/take-attendance" class="sidebar-link"><div class="nav-icon">◉</div> Take Attendance</a>
+      <span class="nav-label">Reports</span>
+      <a href="/staff/reports" class="sidebar-link"><div class="nav-icon">◑</div> Monthly Reports</a>
+      <span class="nav-label">Manage</span>
+      <a href="/staff/users" class="sidebar-link active"><div class="nav-icon">◎</div> Students</a>
+      <a href="/staff/settings" class="sidebar-link"><div class="nav-icon">⚙</div> Settings</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">Staff · {{ session.department }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Student Management</div>
+          <div class="topbar-sub">{{ students | length }} students registered</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="icon-btn"><span>🔔</span><span class="notif-dot"></span></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Search & Filter -->
+      <div class="section-card glass-card animate-in" style="padding:16px 20px">
+        <div class="search-bar">
+          <input type="text" class="search-input" id="userSearch" placeholder="Search students by name, roll no, or email..." oninput="filterUsers()">
+          <select class="filter-select" id="deptFilter" onchange="filterUsers()">
+            <option value="">All Departments</option>
+            <option value="CSE">CSE</option>
+            <option value="ECE">ECE</option>
+            <option value="EEE">EEE</option>
+            <option value="MECH">MECH</option>
+            <option value="CIVIL">CIVIL</option>
+            <option value="IT">IT</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Students Grid -->
+      <div class="users-grid" id="usersGrid">
+        {% if students %}
+          {% for s in students %}
+          <div class="user-card glass-card animate-in" data-name="{{ s.name|lower }}" data-roll="{{ s.roll_no|lower }}" data-email="{{ s.email|lower }}" data-dept="{{ s.department }}">
+            <div class="user-avatar">{{ s.name[0] }}</div>
+            <div class="user-info">
+              <h4>{{ s.name }}</h4>
+              <div class="user-roll">{{ s.roll_no }}</div>
+              <div class="user-email">{{ s.email }}</div>
+              <span class="user-dept">{{ s.department }}</span>
+            </div>
+            <div class="user-actions">
+              <button class="delete-btn" title="Delete" onclick="confirmDelete({{ s.id }}, '{{ s.name }}')">✕</button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="section-card glass-card" style="grid-column:1/-1;padding:3rem;text-align:center">
+            <div class="empty-state">
+              <div class="empty-icon">◎</div>
+              <p>No students registered yet</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal" style="display:none">
+  <div class="modal-card glass-card">
+    <h3>Delete Student?</h3>
+    <p>This will permanently remove <strong id="deleteStudentName"></strong> and all their attendance records.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" onclick="executeDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  let deleteStudentId = null;
+
+  function filterUsers() {
+    const search = document.getElementById('userSearch').value.toLowerCase();
+    const dept = document.getElementById('deptFilter').value;
+
+    document.querySelectorAll('.user-card').forEach(card => {
+      const name = card.dataset.name || '';
+      const roll = card.dataset.roll || '';
+      const email = card.dataset.email || '';
+      const cardDept = card.dataset.dept || '';
+
+      const matchSearch = !search || name.includes(search) || roll.includes(search) || email.includes(search);
+      const matchDept = !dept || cardDept === dept;
+
+      card.style.display = (matchSearch && matchDept) ? '' : 'none';
+    });
+  }
+
+  function confirmDelete(id, name) {
+    deleteStudentId = id;
+    document.getElementById('deleteStudentName').textContent = name;
+    document.getElementById('deleteModal').style.display = 'flex';
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    deleteStudentId = null;
+  }
+
+  async function executeDelete() {
+    if (!deleteStudentId) return;
+    try {
+      const res = await fetch(`/api/students/delete/${deleteStudentId}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Student deleted successfully', 'success');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToast(data.message || 'Failed to delete', 'error');
+      }
+    } catch {
+      showToast('Network error', 'error');
+    }
+    closeDeleteModal();
+  }
+</script>
+</body>
+</html>

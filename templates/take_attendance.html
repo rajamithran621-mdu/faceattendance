@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Take Attendance — FaceAttend</title>
+  <meta name="description" content="Face recognition attendance capture - FaceAttend">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">◈</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Staff Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <a href="/staff/dashboard" class="sidebar-link"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/staff/take-attendance" class="sidebar-link active"><div class="nav-icon">◉</div> Take Attendance</a>
+      <span class="nav-label">Reports</span>
+      <a href="/staff/reports" class="sidebar-link"><div class="nav-icon">◑</div> Monthly Reports</a>
+      <span class="nav-label">Manage</span>
+      <a href="/staff/users" class="sidebar-link"><div class="nav-icon">◎</div> Students</a>
+      <a href="/staff/settings" class="sidebar-link"><div class="nav-icon">⚙</div> Settings</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">Staff</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Take Attendance</div>
+          <div class="topbar-sub">Face Recognition · Auto-scan every 3s</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="grid-2">
+        <!-- Camera -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">◉ Face Recognition Camera</span></div>
+
+          <div class="form-group" style="margin-bottom:1.25rem">
+            <label for="subjectSelect">Select Subject</label>
+            <select id="subjectSelect" class="form-control">
+              <option value="General">General</option>
+              {% for subject in subjects %}
+              <option value="{{ subject.name }}">{{ subject.name }} ({{ subject.department }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="video-wrap">
+            <video id="cameraFeed" autoplay muted playsinline></video>
+            <canvas id="captureCanvas"></canvas>
+            <div class="scan-overlay">
+              <div class="scan-ring">
+                <div class="scan-radar"></div>
+              </div>
+              <div class="scan-corner tl"></div>
+              <div class="scan-corner tr"></div>
+              <div class="scan-corner bl"></div>
+              <div class="scan-corner br"></div>
+            </div>
+          </div>
+
+          <div style="text-align:center;margin-bottom:1rem">
+            <span id="recognitionStatus" style="font-size:0.83rem;color:var(--text-muted)">⏸ Camera not started</span>
+          </div>
+
+          <div class="cam-controls">
+            <button id="startRecognition" class="btn btn-primary" style="width:auto">▶ Start Recognition</button>
+            <button id="stopRecognition" class="btn btn-danger" style="display:none;width:auto">■ Stop</button>
+          </div>
+          <p style="text-align:center;font-size:0.75rem;color:var(--text-muted);margin-top:1rem">
+            Auto-scans every 3 seconds. Keep students in frame.
+          </p>
+        </div>
+
+        <!-- Recognized -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header">
+            <span class="section-title">✓ Recognized Students</span>
+            <button class="btn btn-secondary btn-sm" onclick="clearRecognized()">✕ Clear</button>
+          </div>
+          <div id="recognizedStudents" class="recognized-list">
+            <div class="empty-state"><div class="empty-icon">◉</div><p>No students recognized yet</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual -->
+      <div class="section-card glass-card animate-in">
+        <div class="section-header"><span class="section-title">✎ Manual Attendance Override</span></div>
+        <p style="font-size:0.84rem;color:var(--text-muted);margin-bottom:1.25rem">
+          Can't recognize a student? Mark attendance manually below.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0">
+            <label for="manualStudent">Select Student</label>
+            <select id="manualStudent" class="form-control"><option value="">— Select Student —</option></select>
+          </div>
+          <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0">
+            <label for="manualSubject">Subject</label>
+            <select id="manualSubject" class="form-control">
+              <option value="General">General</option>
+              {% for subject in subjects %}
+              <option value="{{ subject.name }}">{{ subject.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="min-width:120px;margin-bottom:0">
+            <label for="manualStatus">Status</label>
+            <select id="manualStatus" class="form-control">
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
+            </select>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="markManual()" style="height:42px">✓ Mark</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  fetch('/api/students').then(r => r.json()).then(students => {
+    const sel = document.getElementById('manualStudent');
+    students.forEach(s => {
+      const o = document.createElement('option'); o.value = s.id;
+      o.textContent = `${s.name} (${s.roll_no})`; sel.appendChild(o);
+    });
+  });
+
+  function clearRecognized() {
+    document.getElementById('recognizedStudents').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">◉</div><p>No students recognized yet</p></div>';
+  }
+
+  async function markManual() {
+    const studentId = document.getElementById('manualStudent').value;
+    const subject = document.getElementById('manualSubject').value;
+    const status = document.getElementById('manualStatus').value;
+    if (!studentId) { showToast('Please select a student', 'warning'); return; }
+    try {
+      const res = await fetch('/api/mark-attendance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: parseInt(studentId), subject, status })
+      });
+      const data = await res.json();
+      showToast(data.message, data.already_marked ? 'info' : 'success');
+    } catch { showToast('Network error', 'error'); }
+  }
+</script>
+</body>
+</html>

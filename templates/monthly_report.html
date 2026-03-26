@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Monthly Reports — FaceAttend</title>
+  <meta name="description" content="Monthly attendance reports and analytics">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div><div class="aurora-layer aurora-4"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">◈</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Staff Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <a href="/staff/dashboard" class="sidebar-link"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/staff/take-attendance" class="sidebar-link"><div class="nav-icon">◉</div> Take Attendance</a>
+      <span class="nav-label">Reports</span>
+      <a href="/staff/reports" class="sidebar-link active"><div class="nav-icon">◑</div> Monthly Reports</a>
+      <span class="nav-label">Manage</span>
+      <a href="/staff/users" class="sidebar-link"><div class="nav-icon">◎</div> Students</a>
+      <a href="/staff/settings" class="sidebar-link"><div class="nav-icon">⚙</div> Settings</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">Staff · {{ session.department }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Monthly Reports</div>
+          <div class="topbar-sub">Analytics · Charts · Export</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="icon-btn"><span>🔔</span><span class="notif-dot"></span></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Filter Card -->
+      <div class="report-filter glass-card animate-in">
+        <div class="form-group">
+          <label for="reportMonth">Month</label>
+          <select id="reportMonth" class="form-control">
+            <option value="01">January</option><option value="02">February</option>
+            <option value="03">March</option><option value="04">April</option>
+            <option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option>
+            <option value="09">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reportYear">Year</label>
+          <select id="reportYear" class="form-control">
+            {% for y in range(2024, 2028) %}
+            <option value="{{ y }}" {% if y == 2026 %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reportDept">Department</label>
+          <select id="reportDept" class="form-control">
+            <option value="">All Departments</option>
+            <option value="CSE">CSE</option><option value="ECE">ECE</option>
+            <option value="EEE">EEE</option><option value="MECH">MECH</option>
+            <option value="CIVIL">CIVIL</option><option value="IT">IT</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:auto;min-width:160px" onclick="generateMonthlyReport()">
+          ◑ Generate Report
+        </button>
+      </div>
+
+      <!-- Report Output (hidden until generated) -->
+      <div id="monthlyReportOutput" style="display:none">
+
+        <!-- Title + Export -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem" class="animate-in">
+          <div>
+            <h2 id="mTitle" style="font-size:1.2rem;font-weight:800;color:var(--text);letter-spacing:-0.3px"></h2>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-top:2px">Generated on <span id="mGenDate"></span></p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-pdf" onclick="downloadMonthlyPDF()">↓ Download PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadMonthlyCSV()">↓ Export CSV</button>
+          </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+          <div class="summary-card c-teal glass-card animate-in">
+            <span class="s-icon">◑</span>
+            <div class="s-val" id="mTotal">—</div>
+            <div class="s-lbl">Working Days</div>
+          </div>
+          <div class="summary-card c-green glass-card animate-in">
+            <span class="s-icon">✓</span>
+            <div class="s-val" id="mPresent">—</div>
+            <div class="s-lbl">Present Days</div>
+          </div>
+          <div class="summary-card c-red glass-card animate-in">
+            <span class="s-icon">✕</span>
+            <div class="s-val" id="mAbsent">—</div>
+            <div class="s-lbl">Absent Days</div>
+          </div>
+          <div class="summary-card c-mint glass-card animate-in">
+            <span class="s-icon">◈</span>
+            <div class="s-val" id="mPct">—</div>
+            <div class="s-lbl">Attendance %</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-grid">
+          <div class="chart-card glass-card animate-in">
+            <div class="section-header" style="margin-bottom:1rem">
+              <span class="section-title">📊 Daily Attendance</span>
+            </div>
+            <canvas id="barChart"></canvas>
+          </div>
+          <div class="chart-card glass-card animate-in">
+            <div class="section-header" style="margin-bottom:1rem">
+              <span class="section-title">📈 Attendance Trend</span>
+            </div>
+            <canvas id="lineChart"></canvas>
+          </div>
+          <div class="chart-card glass-card animate-in" style="max-width:360px;margin:0 auto;width:100%">
+            <div class="section-header" style="margin-bottom:1rem">
+              <span class="section-title">🥧 Present vs Absent</span>
+            </div>
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Detailed Table -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header">
+            <span class="section-title">◷ Detailed Attendance Records</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Student</th><th>Roll No</th><th>Time In</th><th>Status</th></tr>
+              </thead>
+              <tbody id="monthlyTableBody">
+                <tr><td colspan="5" class="empty-state"><p>Generate a report to see records</p></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /monthlyReportOutput -->
+
+      <!-- Skeleton placeholder -->
+      <div id="skeletonHint" class="section-card glass-card animate-in" style="padding:3rem;text-align:center">
+        <div style="font-size:3rem;margin-bottom:1rem;opacity:0.2">◑</div>
+        <p style="color:var(--text-muted);font-size:0.9rem">Select a month and year above, then click <strong style="color:var(--teal-light)">Generate Report</strong></p>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  // Set current month as default
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('reportMonth').value = mm;
+
+  // Set gen date
+  function setGenDate() {
+    const el = document.getElementById('mGenDate');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', { dateStyle: 'long' });
+  }
+
+  // Override to also hide skeleton
+  const _origGenerate = generateMonthlyReport;
+  async function generateMonthlyReport() {
+    await _origGenerate();
+    const sk = document.getElementById('skeletonHint');
+    if (sk) sk.style.display = 'none';
+    setGenDate();
+  }
+
+  function downloadMonthlyCSV() {
+    const month = document.getElementById('reportMonth')?.value;
+    const year = document.getElementById('reportYear')?.value;
+    if (!month || !year) { showToast('Generate a report first', 'warning'); return; }
+    window.open(`/api/report/monthly/csv?month=${month}&year=${year}`, '_blank');
+    showToast('Downloading CSV...', 'info');
+  }
+</script>
+</body>
+</html>

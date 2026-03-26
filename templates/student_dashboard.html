@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Dashboard — FaceAttend</title>
+  <meta name="description" content="Student attendance dashboard - FaceAttend">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div><div class="aurora-layer aurora-4"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">🎓</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Student Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Navigation</span>
+      <a href="/student/dashboard" class="sidebar-link active"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/capture-face" class="sidebar-link"><div class="nav-icon">◉</div> Update Face</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">{{ session.roll_no }} · {{ session.department }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Student Dashboard</div>
+          <div class="topbar-sub">{{ session.department }} · {{ session.roll_no }}</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="icon-btn"><span>🔔</span><span class="notif-dot"></span></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Welcome -->
+      <div class="welcome-banner animate-in">
+        <div class="welcome-text">
+          <h2>Hello, {{ session.user_name }} 👋</h2>
+          <p>Here's your attendance overview. Keep it above 75%.</p>
+        </div>
+        <div class="welcome-badge">
+          {% if is_danger %}⚠ Attendance Low{% else %}✓ Attendance Good{% endif %}
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon teal">◈</div>
+          <div class="stat-info"><h3>{{ percentage }}%</h3><p>Overall</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon green">✦</div>
+          <div class="stat-info"><h3>{{ subject_attendance | length }}</h3><p>Subjects</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon {% if is_danger %}red{% else %}green{% endif %}">
+            {% if is_danger %}⚠{% else %}★{% endif %}
+          </div>
+          <div class="stat-info"><h3>{% if is_danger %}Low{% else %}Good{% endif %}</h3><p>Status</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon yellow">◷</div>
+          <div class="stat-info"><h3>{{ recent_records | length }}</h3><p>Records</p></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Ring -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">◈ Attendance Overview</span></div>
+          <div class="ring-wrap">
+            <div class="progress-ring">
+              <svg width="180" height="180" viewBox="0 0 180 180">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#285A48"/>
+                    <stop offset="100%" stop-color="#B0E4CC"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="90" cy="90" r="80"/>
+                <circle class="ring-fill {% if is_danger %}danger{% endif %}"
+                  cx="90" cy="90" r="80"
+                  stroke-dasharray="502"
+                  data-percentage="{{ percentage }}"/>
+              </svg>
+              <div class="ring-pct">{{ percentage }}<span>%</span></div>
+            </div>
+            <div class="status-pill {% if is_danger %}bad{% else %}good{% endif %}">
+              {% if is_danger %}⚠ Below 75% — Attendance Low{% else %}✓ Attendance is Good{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject-wise -->
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">✦ Subject-wise Attendance</span></div>
+          {% if subject_attendance %}
+          <div style="display:flex;flex-direction:column;gap:14px">
+            {% for row in subject_attendance %}
+            {% set pct = ((row.present_count / row.total) * 100) | round(1) if row.total > 0 else 100 %}
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                <span style="font-size:0.83rem;font-weight:500;color:var(--text)">{{ row.subject }}</span>
+                <span style="font-size:0.77rem;font-weight:600;color:{% if pct < 75 %}var(--danger){% else %}var(--teal-light){% endif %}">
+                  {{ row.present_count }}/{{ row.total }} ({{ pct }}%)
+                </span>
+              </div>
+              <div style="background:rgba(176,228,204,0.06);border-radius:50px;height:6px;overflow:hidden">
+                <div style="height:100%;width:{{ pct }}%;background:{% if pct < 75 %}var(--danger){% else %}linear-gradient(90deg,var(--teal-dark),var(--teal-light)){% endif %};border-radius:50px;transition:width 1.4s var(--ease)"></div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state"><div class="empty-icon">◈</div><p>No attendance records yet</p></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Recent Records -->
+      <div class="section-card glass-card animate-in">
+        <div class="section-header"><span class="section-title">◷ Recent Attendance</span></div>
+        {% if recent_records %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Time</th><th>Subject</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for r in recent_records %}
+              <tr>
+                <td>{{ r.date }}</td><td>{{ r.time }}</td><td>{{ r.subject }}</td>
+                <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">◈</div><p>No attendance records found</p></div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Staff Dashboard — FaceAttend</title>
+  <meta name="description" content="Staff dashboard for FaceAttend attendance management">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="aurora-bg">
+  <div class="aurora-layer aurora-1"></div><div class="aurora-layer aurora-2"></div>
+  <div class="aurora-layer aurora-3"></div><div class="aurora-layer aurora-4"></div>
+</div>
+<canvas class="particles-canvas" id="particlesCanvas"></canvas>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a href="/" class="sidebar-brand">
+      <div class="brand-logo">◈</div>
+      <div class="brand-text"><span class="b-name">FaceAttend</span><span class="b-sub">Staff Portal</span></div>
+    </a>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <a href="/staff/dashboard" class="sidebar-link active"><div class="nav-icon">◈</div> Dashboard</a>
+      <a href="/staff/take-attendance" class="sidebar-link"><div class="nav-icon">◉</div> Take Attendance</a>
+      <span class="nav-label">Reports</span>
+      <a href="/staff/reports" class="sidebar-link"><div class="nav-icon">◑</div> Monthly Reports</a>
+      <span class="nav-label">Manage</span>
+      <a href="/staff/users" class="sidebar-link"><div class="nav-icon">◎</div> Students</a>
+      <a href="/staff/settings" class="sidebar-link"><div class="nav-icon">⚙</div> Settings</a>
+      <span class="nav-label">Account</span>
+      <a href="/logout" class="sidebar-link"><div class="nav-icon">⇥</div> Logout</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">{{ session.user_name[0] }}</div>
+        <div style="flex:1;min-width:0">
+          <div class="u-name">{{ session.user_name }}</div>
+          <div class="u-role">Staff · {{ session.department }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <div>
+          <div class="topbar-title">Staff Dashboard</div>
+          <div class="topbar-sub">{{ session.department }} · {{ today }}</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill" id="liveClock"></div>
+        <div class="icon-btn"><span>🔔</span><span class="notif-dot"></span></div>
+        <div class="topbar-avatar">{{ session.user_name[0] }}</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Welcome Banner -->
+      <div class="welcome-banner animate-in">
+        <div class="welcome-text">
+          <h2>Welcome, {{ session.user_name }} ◈</h2>
+          <p>Manage attendance and generate reports from here.</p>
+        </div>
+        <a href="/staff/take-attendance" class="btn btn-primary" style="width:auto">◉ Start Recognition</a>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon teal">◈</div>
+          <div class="stat-info"><h3 id="statTotal">{{ total_students }}</h3><p>Total Students</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon green">✓</div>
+          <div class="stat-info"><h3 id="presentCount">{{ present_count }}</h3><p>Present Today</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon red">✕</div>
+          <div class="stat-info"><h3 id="absentCount">{{ absent_count }}</h3><p>Absent Today</p></div>
+        </div>
+        <div class="stat-card glass-card animate-in">
+          <div class="stat-icon yellow">%</div>
+          <div class="stat-info"><h3>{{ stats.overall_pct }}%</h3><p>Attendance Rate</p></div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="chart-grid">
+        <div class="chart-card glass-card animate-in">
+          <div class="section-header" style="margin-bottom:1rem">
+            <span class="section-title">📊 Weekly Attendance</span>
+          </div>
+          <canvas id="weeklyBarChart"></canvas>
+        </div>
+        <div class="chart-card glass-card animate-in">
+          <div class="section-header" style="margin-bottom:1rem">
+            <span class="section-title">📈 Attendance Trend</span>
+          </div>
+          <canvas id="weeklyLineChart"></canvas>
+        </div>
+        <div class="chart-card glass-card animate-in" style="max-width:360px;margin:0 auto;width:100%">
+          <div class="section-header" style="margin-bottom:1rem">
+            <span class="section-title">🥧 Today's Ratio</span>
+          </div>
+          <canvas id="todayPieChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Present / Absent Lists -->
+      <div class="grid-2">
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">✓ Present Today ({{ present_count }})</span></div>
+          <div class="student-list" id="presentList">
+            {% if present_list %}
+              {% for s in present_list %}
+              <div class="s-item">
+                <div class="s-avatar present">{{ s.name[0] }}</div>
+                <div class="s-info"><h4>{{ s.name }}</h4><p>{{ s.roll_no }} · {{ s.department }}</p></div>
+              </div>
+              {% endfor %}
+            {% else %}
+            <div class="empty-state"><div class="empty-icon">◈</div><p>No students present yet</p></div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="section-card glass-card animate-in">
+          <div class="section-header"><span class="section-title">✕ Absent Today ({{ absent_count }})</span></div>
+          <div class="student-list" id="absentList">
+            {% if absent_list %}
+              {% for s in absent_list %}
+              <div class="s-item">
+                <div class="s-avatar absent">{{ s.name[0] }}</div>
+                <div class="s-info"><h4>{{ s.name }}</h4><p>{{ s.roll_no }} · {{ s.department }}</p></div>
+              </div>
+              {% endfor %}
+            {% else %}
+            <div class="empty-state"><div class="empty-icon">✦</div><p>All students present!</p></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Section -->
+      <div class="section-card glass-card animate-in">
+        <div class="section-header">
+          <span class="section-title">◑ Attendance Reports</span>
+          <div class="section-actions">
+            <input type="date" id="reportDate" class="date-input" value="{{ today }}">
+            <button class="btn btn-secondary btn-sm" onclick="downloadReport('daily')">↓ Daily CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadReport('weekly')">↓ Weekly CSV</button>
+            <a href="/staff/reports" class="btn btn-info btn-sm">◑ Monthly</a>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="dailyReport">◷ Daily</button>
+          <button class="tab-btn" data-tab="weeklyReport">◑ Weekly</button>
+        </div>
+
+        <div id="dailyReport" class="report-panel">
+          {% if daily_report %}
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Student</th><th>Roll No</th><th>Dept</th><th>Time</th><th>Subject</th><th>Status</th></tr></thead>
+              <tbody id="dailyReportBody">
+                {% for r in daily_report %}
+                <tr>
+                  <td>{{ r.student_name }}</td><td>{{ r.roll_no }}</td><td>{{ r.department }}</td>
+                  <td>{{ r.time }}</td><td>{{ r.subject }}</td>
+                  <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="empty-state" id="dailyReportBody">
+            <div class="empty-icon">◈</div><p>No attendance records for today</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <div id="weeklyReport" class="report-panel" style="display:none">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Student</th><th>Roll No</th><th>Dept</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+              <tbody id="weeklyReportBody">
+                <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Click Weekly to load data</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  // Initialize dashboard charts with stats data
+  const dashboardStats = {{ stats | tojson }};
+  if (typeof initDashboardCharts === 'function') {
+    initDashboardCharts(dashboardStats);
+  }
+
+  // Animate stat counters
+  animateCounter(document.getElementById('statTotal'), {{ total_students }});
+  animateCounter(document.getElementById('presentCount'), {{ present_count }});
+  animateCounter(document.getElementById('absentCount'), {{ absent_count }});
+</script>
+</body>
+</html>
